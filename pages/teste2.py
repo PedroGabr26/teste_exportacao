@@ -118,6 +118,11 @@ def fazer_requisicao(filtros, pagina):
     body["pagina"] = pagina  # Adicionar o número da página ao body
     body["quantidade"] = 10  # Número de itens por página
 
+    body["mais_filtros"] = {  
+        "com_email": True, 
+        "com_telefone": True,  
+        "somente_celular": True 
+    }
     # Realizando a requisição
     response = requests.post(url, headers=headers, json=body)
 
