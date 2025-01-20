@@ -1,0 +1,5 @@
+passar por cada telefone extraido e depois validar ele
+dividir o problema:
+    1 pass: passar por cada telefone extraido
+    
+    2 pass: depois validar ele

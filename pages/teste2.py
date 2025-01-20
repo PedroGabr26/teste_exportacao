@@ -89,13 +89,13 @@ def logica_search(cnpj):
                 st.error(f"❌ ERROR:{response.status_code}")
 
 
-def validate_numero_telefone(phone_number):
-    pattern = r'\(\d{2}\) 9\d{4}-\d{4}'
-    if re.match(pattern, phone_number):
-        return 'Número de telefone válido.'
+def validate_numero_telefone(numero):
+    numero_limpo = re.sub(r'[^\d]', '', numero)
+    pattern = r'^\d{2}9\d{4}\d{4}$'
+    if re.match(pattern, numero_limpo):
+        return True
     else:
-        return 'Número de telefone inválido.'
-
+        return False
 
 # Função para remover caracteres especiais
 def remover_caracteres_especiais(texto):
@@ -108,21 +108,21 @@ def remover_caracteres_especiais(texto):
             
 
 def fazer_requisicao(filtros, pagina):
-    url = "https://api.casadosdados.com.br/v5/cnpj/pesquisa"
+    url = "https://api.casadosdados.com.br/v5/cnpj/pesquisa?tipo_resultado=completo"
     headers = {
         "api-key": "485a4129e6a8763fe42c87b03996ab87b93092727623ddf2763da480588d8ed8f36f7b092cfc5af5ec1b5062b9eac8cd8e2ed9298c95f6f25d2908dd8287012c"
     }
 
     # Corpo da requisição com os filtros e a página atual
     body = filtros if filtros else {}
+    body["mais_filtros"] = {  
+        "com_email": True, 
+        "com_telefone": True 
+    }
     body["pagina"] = pagina  # Adicionar o número da página ao body
     body["quantidade"] = 10  # Número de itens por página
 
-    body["mais_filtros"] = {  
-        "com_email": True, 
-        "com_telefone": True,  
-        "somente_celular": True 
-    }
+    st.session_state.body = body # sakva o body da sessão
     # Realizando a requisição
     response = requests.post(url, headers=headers, json=body)
 
@@ -191,6 +191,7 @@ def app():
             st.session_state.filtros = filtros  # Filtros usados na busca
             st.session_state.pagina_atual = 1 # Página atual, que começa na página 1
 
+
     # Verificar se há resultados salvos na sessão
     if "resultados" in st.session_state:
         # Se houver
@@ -198,6 +199,9 @@ def app():
         filtros = st.session_state.filtros # Pega os filtros na busca
         pagina_atual = st.session_state.pagina_atual # Pega a página atual
 
+    if "filtros" in st.session_state:
+        filtros = st.session_state.filtros
+        
         st.subheader(f"Total de resultados: {total}") # Mostra na tela o total de resultados
 
         # Paginação
@@ -215,24 +219,33 @@ def app():
         for item in resultados: # passa por cada item dentro do resultado da requisição
             cnpj = item['cnpj'] # acessa o campo cnpj dentro de item
             item['link_cnpj'] = f'<a href="{base_url}{cnpj}" target="_blank">{cnpj}</a>' # passa no link clicável 
-
+            
                 
         # Exibir os resultados da página atual
         df = pd.DataFrame(resultados)
-        # 1 passo: pegar somente a coluna de telefones no dataframe
-        
-        
-        # 2 passo: pegar uma api que valida os telefones dessa mesma coluna e retornar somente os válidos
-        #df2 = df.groupby()
-        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+        # 1 passo: pegar somente a coluna de telefones no dataframe e também usar a biblioteca re para validar os telefones
 
-        if st.link_button("Exportar", "http://localhost:8501/"):
-            pass
-        #coluna_telefone = df['Telefones']
-       # for numero in coluna_telefone:
-            #validate_numero_telefone(numero)
-        # Controle de paginação
-        # Cria 3 colunas
+        # TESTE
+        def extrair_telefones(lista_telefones):
+            if isinstance(lista_telefones,list):
+                resultado = []
+                for tel in lista_telefones:
+                    if 'completo' in tel:
+                        resultado.append(tel['completo'])
+                return resultado
+        
+        df['Telefone_extraido'] = df['contato_telefonico'].apply(extrair_telefones) # é uma função que pega uma lista, entra nela, extrai dela só uma chave específica e cria uma nova coluna com essa chave
+        
+        df['validado'] = df['Telefone_extraido'].apply(
+            lambda lista: [validate_numero_telefone(item) for item in lista]
+        )
+
+
+        st.markdown(df.to_html(escape=False,index=False,classes="table"), unsafe_allow_html=True)
+
+        st.link_button("Exportar","http://localhost:8501/")
+
+        # Coluna do botão de páginas        
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Página Anterior") and pagina_atual > 1:
