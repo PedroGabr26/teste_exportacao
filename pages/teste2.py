@@ -97,6 +97,17 @@ def validate_numero_telefone(numero):
     else:
         return False
 
+
+# passar somente o número aqui e RETIRAR O TOKEN
+def verificar_whatsapp(numero,token):
+        url = f"https://graph.facebook.com/v13.0/{numero}?access_token={token}" # Token deve sempre estar aqui
+        response = requests.get(url)
+        data = response.json()
+        if numero:
+            return data.get("whatsapp_id")
+        else:
+            return "numero não registrado"
+
 # Função para remover caracteres especiais
 def remover_caracteres_especiais(texto):
     # Substitui qualquer caractere que não seja alfanumérico ou espaço por uma string vazia
@@ -112,6 +123,7 @@ def fazer_requisicao(filtros, pagina):
     headers = {
         "api-key": "485a4129e6a8763fe42c87b03996ab87b93092727623ddf2763da480588d8ed8f36f7b092cfc5af5ec1b5062b9eac8cd8e2ed9298c95f6f25d2908dd8287012c"
     }
+
 
     # Corpo da requisição com os filtros e a página atual
     body = filtros if filtros else {}
@@ -225,21 +237,43 @@ def app():
         df = pd.DataFrame(resultados)
         # 1 passo: pegar somente a coluna de telefones no dataframe e também usar a biblioteca re para validar os telefones
 
-        # TESTE
         def extrair_telefones(lista_telefones):
-            if isinstance(lista_telefones,list):
-                resultado = []
-                for tel in lista_telefones:
-                    if 'completo' in tel:
-                        resultado.append(tel['completo'])
+            if isinstance(lista_telefones,list): # Verifica se é uma lista
+                resultado = [] # iniciamos a lista vazia que será levada para a nova coluna criada
+                for tel in lista_telefones: # passa por cada item (que é uma lista) na lista de telefones
+                    if 'completo' in tel: # verifica se existe a chave completo existe dentro do item
+                        resultado.append(tel['completo']) # se houver ele adiciona cada item dentro de "resultado"
                 return resultado
-        
+        # criamos uma nova coluna dentro do dataframe e aplicamos a função dentro da coluna pra passar por cada item
         df['Telefone_extraido'] = df['contato_telefonico'].apply(extrair_telefones) # é uma função que pega uma lista, entra nela, extrai dela só uma chave específica e cria uma nova coluna com essa chave
         
+        def extrair_telefones(lista_telefones):
+            """
+            Essa função pode receber somente um único número ou pode retornar tambem uma lista de um dataframe
+            """
+            if isinstance(lista_telefones,list): # Verifica se é uma lista
+                resultado = [] # iniciamos a lista vazia que será levada para a nova coluna criada
+                for tel in lista_telefones: # passa por cada item (que é uma lista) na lista de telefones
+                    if 'completo' in tel: # verifica se existe a chave completo existe dentro do item
+                        resultado.append(tel['completo']) # se houver ele adiciona cada item dentro de "resultado"
+                return resultado
+            else:
+                numero_limpo = re.sub(r'[^\d]', '', lista_telefones)
+                pattern = r'^\d{2}9\d{4}\d{4}$'
+                if re.match(pattern, numero_limpo):
+                    return True
+                else:
+                    return False
+
+        # criamos ua nova coluna que vai ser baseada em outra coluna, a "telefone extraido", acessamos a lista, passamos por cada item dentro da lista e jogamos a função "validate_numero_telefone" dentro de cada item
         df['validado'] = df['Telefone_extraido'].apply(
             lambda lista: [validate_numero_telefone(item) for item in lista]
         )
 
+        # TESTAR ESSA FUNÇÃO E ESSE CÓDIGO 
+        df['numero_whatsapp'] = df['Telefone_extraido'].apply(
+            lambda lista: [verificar_whatsapp(num) for num in lista]
+        )
 
         st.markdown(df.to_html(escape=False,index=False,classes="table"), unsafe_allow_html=True)
 
