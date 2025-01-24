@@ -274,10 +274,6 @@ def app():
         
 
         # criamos ua nova coluna que vai ser baseada em outra coluna, a "telefone extraido", acessamos a lista, passamos por cada item dentro da lista e jogamos a função "validate_numero_telefone" dentro de cada item
-        #df['validado'] = df['Telefone_extraido'].apply(
-        #    lambda lista: [validate_numero_telefone(item) for item in lista]
-        #)
-        
         
         df['numero_whatsapp'] = df['Telefone_extraido'].apply(
             lambda lista: [verificar_whatsapp(num) for num in lista]
