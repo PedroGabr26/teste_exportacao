@@ -97,16 +97,43 @@ def validate_numero_telefone(numero):
     else:
         return False
 
+def extrair_telefones(lista_telefones):
+    """
+    Essa função pode receber somente um único número ou pode retornar tambem uma lista de um dataframe
+            """
+    if isinstance(lista_telefones,list): # Verifica se é uma lista
+        resultado = [] # iniciamos a lista vazia que será levada para a nova coluna criada
+        for tel in lista_telefones: # passa por cada item (que é uma lista) na lista de telefones
+            if 'completo' in tel: # verifica se existe a chave completo existe dentro do item
+                resultado.append(tel['completo']) # se houver ele adiciona cada item dentro de "resultado"
+            return resultado
+    else:
+        numero_limpo = re.sub(r'[^\d]', '', lista_telefones)
+        pattern = r'^\d{2}9\d{4}\d{4}$'
+        if re.match(pattern, numero_limpo):
+            return True
+        else:
+            return False
 
 # passar somente o número aqui e RETIRAR O TOKEN
-def verificar_whatsapp(numero,token):
-        url = f"https://graph.facebook.com/v13.0/{numero}?access_token={token}" # Token deve sempre estar aqui
-        response = requests.get(url)
+def verificar_whatsapp(numero):
+    numero_limpo = re.sub(r'\D', '', numero)
+    url = "https://evo2-gcp8.blubots.com/chat/whatsappNumbers/testegabriel"
+
+    payload = {"numbers": [f"{numero_limpo}"]}
+    headers = {
+        "apikey": "bb5wil41ltf76p59klk1ko",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.request("POST", url, json=payload, headers=headers)
+
+    if response.status_code == 200:
         data = response.json()
-        if numero:
-            return data.get("whatsapp_id")
-        else:
-            return "numero não registrado"
+        return data
+    else:
+        print(f"Erro:{response.status_code}")
+
 
 # Função para remover caracteres especiais
 def remover_caracteres_especiais(texto):
@@ -115,8 +142,6 @@ def remover_caracteres_especiais(texto):
     return texto_limpo
 
 # Função para realizar a requisição à API
-
-            
 
 def fazer_requisicao(filtros, pagina):
     url = "https://api.casadosdados.com.br/v5/cnpj/pesquisa?tipo_resultado=completo"
@@ -247,30 +272,13 @@ def app():
         # criamos uma nova coluna dentro do dataframe e aplicamos a função dentro da coluna pra passar por cada item
         df['Telefone_extraido'] = df['contato_telefonico'].apply(extrair_telefones) # é uma função que pega uma lista, entra nela, extrai dela só uma chave específica e cria uma nova coluna com essa chave
         
-        def extrair_telefones(lista_telefones):
-            """
-            Essa função pode receber somente um único número ou pode retornar tambem uma lista de um dataframe
-            """
-            if isinstance(lista_telefones,list): # Verifica se é uma lista
-                resultado = [] # iniciamos a lista vazia que será levada para a nova coluna criada
-                for tel in lista_telefones: # passa por cada item (que é uma lista) na lista de telefones
-                    if 'completo' in tel: # verifica se existe a chave completo existe dentro do item
-                        resultado.append(tel['completo']) # se houver ele adiciona cada item dentro de "resultado"
-                return resultado
-            else:
-                numero_limpo = re.sub(r'[^\d]', '', lista_telefones)
-                pattern = r'^\d{2}9\d{4}\d{4}$'
-                if re.match(pattern, numero_limpo):
-                    return True
-                else:
-                    return False
 
         # criamos ua nova coluna que vai ser baseada em outra coluna, a "telefone extraido", acessamos a lista, passamos por cada item dentro da lista e jogamos a função "validate_numero_telefone" dentro de cada item
-        df['validado'] = df['Telefone_extraido'].apply(
-            lambda lista: [validate_numero_telefone(item) for item in lista]
-        )
-
-        # TESTAR ESSA FUNÇÃO E ESSE CÓDIGO 
+        #df['validado'] = df['Telefone_extraido'].apply(
+        #    lambda lista: [validate_numero_telefone(item) for item in lista]
+        #)
+        
+        
         df['numero_whatsapp'] = df['Telefone_extraido'].apply(
             lambda lista: [verificar_whatsapp(num) for num in lista]
         )
