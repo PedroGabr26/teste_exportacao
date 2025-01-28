@@ -123,6 +123,7 @@ def verificar_whatsapp(numero):
     if response.status_code == 200:
         data = response.json()
         return data
+        print( "-" * 20)
     else:
         print(f"Erro:{response.status_code}")
 
@@ -134,6 +135,20 @@ def remover_caracteres_especiais(texto):
     return texto_limpo
 
 # Função para realizar a requisição à API
+
+def formatar_whatsapp_data(data):
+    if not data or not isinstance(data, list):  # Se não for uma lista, retorna vazio
+        return ""
+    
+    resultado_formatado = []
+    for sublist in data:  # Percorre cada lista
+        for item in sublist:  # Percorre cada dicionário na lista
+            numero = item.get("number", "N/A")
+            existe = "Sim" if item.get("exists", False) else "Não"
+            resultado_formatado.append(f"Número: {numero} - Existe: {existe}")
+    
+    return "\n".join(resultado_formatado)
+
 
 def fazer_requisicao(filtros, pagina):
     url = "https://api.casadosdados.com.br/v5/cnpj/pesquisa?tipo_resultado=completo"
@@ -252,26 +267,22 @@ def app():
                 
         # Exibir os resultados da página atual
         df = pd.DataFrame(resultados)
-        # 1 passo: pegar somente a coluna de telefones no dataframe e também usar a biblioteca re para validar os telefones
-
-        def extrair_telefones(lista_telefones):
-            if isinstance(lista_telefones,list): # Verifica se é uma lista
-                resultado = [] # iniciamos a lista vazia que será levada para a nova coluna criada
-                for tel in lista_telefones: # passa por cada item (que é uma lista) na lista de telefones
-                    if 'completo' in tel: # verifica se existe a chave completo existe dentro do item
-                        resultado.append(tel['completo']) # se houver ele adiciona cada item dentro de "resultado"
-                return resultado
-        # criamos uma nova coluna dentro do dataframe e aplicamos a função dentro da coluna pra passar por cada item
-        df['Telefone_extraido'] = df['contato_telefonico'].apply(extrair_telefones) # é uma função que pega uma lista, entra nela, extrai dela só uma chave específica e cria uma nova coluna com essa chave
         
+        # criamos uma nova coluna dentro do dataframe e aplicamos a função dentro da coluna pra passar por cada item
+        #df['Telefone_extraido'] = df['contato_telefonico'].apply(extrair_telefones) # é uma função que pega uma lista, entra nela, extrai dela só uma chave específica e cria uma nova coluna com essa chave
+        df['Telefone_extraido'] = df['contato_telefonico'].apply(
+            lambda lista:([d["completo"] for d in lista])  # Extrai apenas a chave 'completo' de cada dicionário
+        )
 
         # criamos ua nova coluna que vai ser baseada em outra coluna, a "telefone extraido", acessamos a lista, passamos por cada item dentro da lista e jogamos a função "validate_numero_telefone" dentro de cada item
-        
-        df['numero_whatsapp'] = df['Telefone_extraido'].apply(
+        # guarda numa variável pra usar depois e não aparecer como nova coluna do DataFrame
+        teste = df['Telefone_extraido'].apply(
             lambda lista: [verificar_whatsapp(num) for num in lista]
         )
 
-        st.markdown(df.to_html(escape=False,index=False,classes="table"), unsafe_allow_html=True)
+        df['numero_whatsapp'] = teste.apply(formatar_whatsapp_data)
+        st.markdown("<h5 style='font-size:14px;'>Tabela Estática:</h5>", unsafe_allow_html=True)
+        st.table(df.style.set_properties(**{'font-size': '10pt', 'padding': '2px'}))
 
         st.link_button("Exportar","http://localhost:8501/")
 
