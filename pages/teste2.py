@@ -131,7 +131,7 @@ def verificar_whatsapp(numero):
 # Função para remover caracteres especiais
 def remover_caracteres_especiais(texto):
     # Substitui qualquer caractere que não seja alfanumérico ou espaço por uma string vazia
-    texto_limpo = re.sub(r'[^A-Za-z0-9\s]', '', texto)
+    texto_limpo = re.sub(r'[^A-Za-z0-9\s\-/]', '', texto)
     return texto_limpo
 
 # Função para realizar a requisição à API
